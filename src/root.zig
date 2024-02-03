@@ -49,7 +49,7 @@ pub fn init(allocator: std.mem.Allocator, input_id: ?[]const u8) !?BindKey {
         var pi_iter = possible_inputs.iterator();
         sl: while (true) {
             while (pi_iter.next()) |e| {
-                try stdout.print("{d: >2}. {s}\n", .{
+                try stdout.print("{d:>2}. {s}\n", .{
                     e.key_ptr.*,
                     e.value_ptr.*,
                 });
