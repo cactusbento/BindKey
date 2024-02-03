@@ -25,7 +25,7 @@ pub fn init(allocator: std.mem.Allocator, input_id: ?[]const u8) !?BindKey {
     if (input_id) |iid| {
         ret.input = try inputdir.openFile(iid, .{ .mode = .read_write });
     } else {
-        var possible_inputs = std.AutoArrayHashMap(i32, []const u8).init(allocator);
+        var possible_inputs = std.AutoArrayHashMap(u32, []const u8).init(allocator);
         defer {
             for (possible_inputs.values()) |v| {
                 allocator.free(v);
@@ -34,7 +34,7 @@ pub fn init(allocator: std.mem.Allocator, input_id: ?[]const u8) !?BindKey {
         }
 
         var iter = inputdir.iterate();
-        var index: i32 = 1;
+        var index: u32 = 1;
         while (try iter.next()) |et| {
             if (std.mem.endsWith(u8, et.name, "kbd")) {
                 defer index += 1;
@@ -49,7 +49,7 @@ pub fn init(allocator: std.mem.Allocator, input_id: ?[]const u8) !?BindKey {
         var pi_iter = possible_inputs.iterator();
         sl: while (true) {
             while (pi_iter.next()) |e| {
-                try stdout.print("{d:>2}. {s}\n", .{
+                try stdout.print("{d: >2}. {s}\n", .{
                     e.key_ptr.*,
                     e.value_ptr.*,
                 });
@@ -63,9 +63,9 @@ pub fn init(allocator: std.mem.Allocator, input_id: ?[]const u8) !?BindKey {
             const isolated = std.mem.trim(u8, input_buffer.items, &std.ascii.whitespace);
             if (isolated[0] == 'q') return null;
 
-            const num = std.fmt.parseInt(i32, isolated, 10) catch |err| switch (err) {
+            const num = std.fmt.parseUnsigned(u32, isolated, 10) catch |err| switch (err) {
                 else => {
-                    log.err("Invalid Input. Numbers only.", .{});
+                    log.err("Invalid Input. Positive Numbers only.", .{});
                     continue :sl;
                 },
             };
