@@ -1,10 +1,13 @@
 const std = @import("std");
 const ev = @import("evdev");
 const BindKey = @This();
-
 const log = std.log.scoped(.BindKey);
 
+pub const key = ev.key;
+
 input: std.fs.File,
+evdev: ev,
+binds: std.ArrayList(Bind),
 
 pub fn init(allocator: std.mem.Allocator, input_id: ?[]const u8) !?BindKey {
     const stdout_w = std.io.getStdOut().writer();
@@ -15,6 +18,8 @@ pub fn init(allocator: std.mem.Allocator, input_id: ?[]const u8) !?BindKey {
 
     var ret: BindKey = .{
         .input = undefined,
+        .evdev = undefined,
+        .binds = undefined,
     };
 
     var inputdir = try std.fs.openDirAbsolute("/dev/input/by-id", .{
@@ -79,10 +84,59 @@ pub fn init(allocator: std.mem.Allocator, input_id: ?[]const u8) !?BindKey {
             break :sl;
         }
     }
+
+    ret.evdev = try ev.init(ret.input.handle);
+    ret.binds = std.ArrayList(Bind).init(allocator);
+
     return ret;
 }
 
 /// Closes the file descriptor
 pub fn deinit(self: *BindKey) void {
-    self.input.close();
+    defer self.input.close();
+    defer self.evdev.deinit();
+    defer self.binds.deinit();
+}
+
+pub const Bind = struct {
+    bindkey: *BindKey,
+    key: i32,
+    runtype: RunType = .single,
+    event: i32 = ev.event_values.key.press,
+    runFn: *const fn () anyerror!void,
+
+    pub const RunType = union(enum) {
+        loop: u64,
+        single,
+    };
+
+    pub fn run(self: Bind) anyerror!void {
+        try self.runFn();
+    }
+};
+
+pub fn register(self: *BindKey, bind: Bind) !void {
+    try self.binds.append(bind);
+}
+
+pub fn loop(self: *BindKey) !void {
+    var event: ev.InputEvent = undefined;
+    while (true) {
+        const result_code = self.evdev.nextEvent(.normal, &event) catch continue;
+        if (result_code != .success or !std.mem.eql(u8, event.type, "EV_KEY")) continue;
+        if (event.ev.code == key.ESC) break;
+
+        for (self.binds.items) |bind| {
+            switch (bind.runtype) {
+                .single => {
+                    if (event.ev.value == bind.event and
+                        event.ev.code == bind.key)
+                    {
+                        try bind.run();
+                    }
+                },
+                .loop => |_| {},
+            }
+        }
+    }
 }
