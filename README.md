@@ -19,7 +19,7 @@ See `src/main.zig` for an example of how to use this library.
 
 - [x] Read Keyboard events
 - [x] Capture all keyboard inputs
-- [ ] Send Keyboard Inputs
+- [x] Send Keyboard Inputs
 - [ ] Read mouse events
 - [ ] Send mouse inputs
 - [ ] Looping functions

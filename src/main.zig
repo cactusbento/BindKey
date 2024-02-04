@@ -13,27 +13,50 @@ pub fn main() !void {
 
     var hwctx: helloWorldCTX = .{
         .str = "BAA!",
+        .bkctx = &bk,
     };
 
     const SpaceHello: bindkey.Bind = .{
         .key = bindkey.key.SPACE,
         .runtype = .single,
-        .bindkey = &bk,
         .context = @ptrCast(&hwctx),
         .callback = helloWorld,
     };
 
+    var zeroctx: zeroCTX = .{
+        .bkctx = &bk,
+    };
+
+    const Zero: bindkey.Bind = .{
+        .key = bindkey.key.@"0",
+        .runtype = .single,
+        .context = @ptrCast(&zeroctx),
+        .callback = zero,
+    };
+
     try bk.register(SpaceHello);
+    try bk.register(Zero);
 
     try bk.loop();
 }
 
 const helloWorldCTX = struct {
     str: []const u8,
+    bkctx: *bindkey,
 };
 
 pub fn helloWorld(ctx: ?*anyopaque) !void {
     const c: *helloWorldCTX = @alignCast(@ptrCast(ctx.?));
-
     std.debug.print("Hello World! {s}\n", .{c.str});
+}
+
+const zeroCTX = struct {
+    bkctx: *bindkey,
+};
+
+pub fn zero(ctx: ?*anyopaque) !void {
+    const c: *zeroCTX = @alignCast(@ptrCast(ctx.?));
+    std.debug.print("zero() sending KEY_SPACE\n", .{});
+    try c.bkctx.send(bindkey.key.SPACE, bindkey.value.press);
+    try c.bkctx.send(bindkey.key.SPACE, bindkey.value.release);
 }

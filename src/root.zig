@@ -7,6 +7,11 @@ const BindKey = @This();
 const log = std.log.scoped(.BindKey);
 
 pub const key = ev.key;
+pub const value = enum(i32) {
+    release = ev.event_values.key.release,
+    press = ev.event_values.key.press,
+    hold = ev.event_values.key.hold,
+};
 
 /// The amount of time (in milliseconds) to wait before
 /// grabbing the input from the keyboard.
@@ -16,6 +21,8 @@ pub var grab_delay: u64 = 250;
 
 input: std.fs.File,
 evdev: ev,
+uidev: ev.UInput,
+uifd: std.fs.File,
 binds: std.ArrayList(Bind),
 
 /// Subject to a delay to give time to let
@@ -34,6 +41,8 @@ pub fn init(allocator: std.mem.Allocator, input_id: ?[]const u8) !BindKey {
     var ret: BindKey = .{
         .input = undefined,
         .evdev = undefined,
+        .uidev = undefined,
+        .uifd = try std.fs.openFileAbsolute("/dev/uinput", .{ .mode = .read_write }),
         .binds = undefined,
     };
 
@@ -101,6 +110,7 @@ pub fn init(allocator: std.mem.Allocator, input_id: ?[]const u8) !BindKey {
     }
 
     ret.evdev = try ev.init(ret.input.handle);
+    ret.uidev = try ev.UInput.init(ret.evdev.evdev, ret.uifd);
     ret.binds = std.ArrayList(Bind).init(allocator);
 
     return ret;
@@ -110,15 +120,31 @@ pub fn init(allocator: std.mem.Allocator, input_id: ?[]const u8) !BindKey {
 pub fn deinit(self: *BindKey) void {
     defer self.input.close();
     defer self.evdev.deinit();
+    // Crashes (unreachable) ; .BADF
+    // defer self.uifd.close();
+    defer self.uidev.deinit();
     defer self.binds.deinit();
 }
 
+/// code: the keycode of the key to send. See key.
+/// valu: .press, .hold, .release. See value.
+pub fn send(self: *BindKey, code: u32, val: value) !void {
+    const newevent: ev.InputEvent = .{
+        .ev = undefined,
+        .type = .key,
+        .code = code,
+        .value = @intFromEnum(val),
+    };
+    try self.uidev.writeEvent(newevent);
+}
+
 pub const Bind = struct {
-    bindkey: *BindKey,
-    key: i32,
+    key: u32,
     runtype: RunType = .single,
-    event: i32 = ev.event_values.key.press,
+    event: value = .press,
     context: ?*anyopaque,
+
+    /// Function to run when detecting a keyboard input
     callback: *const fn (?*anyopaque) anyerror!void,
 
     pub const RunType = union(enum) {
@@ -145,14 +171,14 @@ pub fn loop(self: *BindKey) !void {
     defer self.evdev.grab(.ungrab) catch unreachable;
     while (true) {
         const result_code = self.evdev.nextEvent(.normal, &event) catch continue;
-        if (result_code != .success or !std.mem.eql(u8, event.type, "EV_KEY")) continue;
-        if (event.ev.code == key.ESC) break;
+        if (result_code != .success or !(event.type == .key)) continue;
+        if (event.code == key.ESC) break;
 
         for (self.binds.items) |bind| {
             switch (bind.runtype) {
                 .single => {
-                    if (event.ev.value == bind.event and
-                        event.ev.code == bind.key)
+                    if (event.value == @intFromEnum(bind.event) and
+                        event.code == bind.key)
                     {
                         try bind.run();
                     }
