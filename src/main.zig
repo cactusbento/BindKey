@@ -6,9 +6,8 @@ pub fn main() !void {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var bkn = try bindkey.init(allocator, null);
-    defer if (bkn) |*b| b.deinit();
-    const bk = &bkn.?;
+    var bk = try bindkey.init(allocator, null);
+    defer bk.deinit();
 
     bk.grab = true;
 
@@ -19,7 +18,7 @@ pub fn main() !void {
     const SpaceHello: bindkey.Bind = .{
         .key = bindkey.key.SPACE,
         .runtype = .single,
-        .bindkey = bk,
+        .bindkey = &bk,
         .context = @ptrCast(&hwctx),
         .callback = helloWorld,
     };

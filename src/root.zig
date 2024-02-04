@@ -24,7 +24,7 @@ binds: std.ArrayList(Bind),
 /// See grab_delay
 grab: bool = false,
 
-pub fn init(allocator: std.mem.Allocator, input_id: ?[]const u8) !?BindKey {
+pub fn init(allocator: std.mem.Allocator, input_id: ?[]const u8) !BindKey {
     const stdout_w = std.io.getStdOut().writer();
     var bw = std.io.bufferedWriter(stdout_w);
     const stdout = bw.writer();
@@ -81,7 +81,7 @@ pub fn init(allocator: std.mem.Allocator, input_id: ?[]const u8) !?BindKey {
             defer input_buffer.clearAndFree();
 
             const isolated = std.mem.trim(u8, input_buffer.items, &std.ascii.whitespace);
-            if (isolated[0] == 'q') return null;
+            if (isolated[0] == 'q') std.process.exit(0);
 
             const num = std.fmt.parseUnsigned(u32, isolated, 10) catch |err| switch (err) {
                 else => {
@@ -136,6 +136,7 @@ pub fn register(self: *BindKey, bind: Bind) !void {
 }
 
 pub fn loop(self: *BindKey) !void {
+    log.info("BindKey loop started. Press ESC to exit.", .{});
     var event: ev.InputEvent = undefined;
     if (self.grab) {
         std.time.sleep(std.time.ns_per_ms * grab_delay);
