@@ -10,6 +10,8 @@ pub fn main() !void {
     defer if (bkn) |*b| b.deinit();
     const bk = &bkn.?;
 
+    bk.grab = true;
+
     var hwctx: helloWorldCTX = .{
         .str = "BAA!",
     };

@@ -1,3 +1,6 @@
+//! The Escape key (KEY_ESC) is reserved for exiting the main loop of the library.
+//! Any assignments to it will be ignored.
+
 const std = @import("std");
 const ev = @import("evdev");
 const BindKey = @This();
@@ -5,9 +8,21 @@ const log = std.log.scoped(.BindKey);
 
 pub const key = ev.key;
 
+/// The amount of time (in milliseconds) to wait before
+/// grabbing the input from the keyboard.
+///
+/// Calls std.time.sleep;
+pub var grab_delay: u64 = 250;
+
 input: std.fs.File,
 evdev: ev,
 binds: std.ArrayList(Bind),
+
+/// Subject to a delay to give time to let
+/// the user release any keys pressed when grabbing.
+///
+/// See grab_delay
+grab: bool = false,
 
 pub fn init(allocator: std.mem.Allocator, input_id: ?[]const u8) !?BindKey {
     const stdout_w = std.io.getStdOut().writer();
@@ -102,7 +117,6 @@ pub const Bind = struct {
     bindkey: *BindKey,
     key: i32,
     runtype: RunType = .single,
-    grab: bool = false,
     event: i32 = ev.event_values.key.press,
     context: ?*anyopaque,
     callback: *const fn (?*anyopaque) anyerror!void,
@@ -123,6 +137,11 @@ pub fn register(self: *BindKey, bind: Bind) !void {
 
 pub fn loop(self: *BindKey) !void {
     var event: ev.InputEvent = undefined;
+    if (self.grab) {
+        std.time.sleep(std.time.ns_per_ms * grab_delay);
+        try self.evdev.grab(.grab);
+    }
+    defer self.evdev.grab(.ungrab) catch unreachable;
     while (true) {
         const result_code = self.evdev.nextEvent(.normal, &event) catch continue;
         if (result_code != .success or !std.mem.eql(u8, event.type, "EV_KEY")) continue;
