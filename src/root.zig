@@ -102,8 +102,10 @@ pub const Bind = struct {
     bindkey: *BindKey,
     key: i32,
     runtype: RunType = .single,
+    grab: bool = false,
     event: i32 = ev.event_values.key.press,
-    runFn: *const fn () anyerror!void,
+    context: ?*anyopaque,
+    callback: *const fn (?*anyopaque) anyerror!void,
 
     pub const RunType = union(enum) {
         loop: u64,
@@ -111,7 +113,7 @@ pub const Bind = struct {
     };
 
     pub fn run(self: Bind) anyerror!void {
-        try self.runFn();
+        try self.callback(self.context);
     }
 };
 

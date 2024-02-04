@@ -10,11 +10,16 @@ pub fn main() !void {
     defer if (bkn) |*b| b.deinit();
     const bk = &bkn.?;
 
+    var hwctx: helloWorldCTX = .{
+        .str = "BAA!",
+    };
+
     const SpaceHello: bindkey.Bind = .{
         .key = bindkey.key.SPACE,
         .runtype = .single,
         .bindkey = bk,
-        .runFn = helloWorld,
+        .context = @ptrCast(&hwctx),
+        .callback = helloWorld,
     };
 
     try bk.register(SpaceHello);
@@ -22,6 +27,12 @@ pub fn main() !void {
     try bk.loop();
 }
 
-pub fn helloWorld() !void {
-    std.debug.print("Hello World!\n", .{});
+const helloWorldCTX = struct {
+    str: []const u8,
+};
+
+pub fn helloWorld(ctx: ?*anyopaque) !void {
+    const c: *helloWorldCTX = @alignCast(@ptrCast(ctx.?));
+
+    std.debug.print("Hello World! {s}\n", .{c.str});
 }
