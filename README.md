@@ -6,8 +6,8 @@ A Zig library for rebinding keys to callback functions.
 
 ## Features/TODOs
 
-[X] Read Keyboard events
-[X] Capture all keyboard inputs
-[ ] Send Keyboard Inputs
-[ ] Read mouse events
-[ ] Send mouse inputs
+- [x] Read Keyboard events
+- [x] Capture all keyboard inputs
+- [ ] Send Keyboard Inputs
+- [ ] Read mouse events
+- [ ] Send mouse inputs
