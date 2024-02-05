@@ -23,7 +23,7 @@ input: std.fs.File,
 evdev: ev,
 uidev: ev.UInput,
 uifd: std.fs.File,
-binds: std.ArrayList(Bind),
+binds: std.AutoArrayHashMap(u32, Bind),
 
 /// Subject to a delay to give time to let
 /// the user release any keys pressed when grabbing.
@@ -111,7 +111,7 @@ pub fn init(allocator: std.mem.Allocator, input_id: ?[]const u8) !BindKey {
 
     ret.evdev = try ev.init(ret.input.handle);
     ret.uidev = try ev.UInput.init(ret.evdev.evdev, ret.uifd);
-    ret.binds = std.ArrayList(Bind).init(allocator);
+    ret.binds = std.AutoArrayHashMap(u32, Bind).init(allocator);
 
     return ret;
 }
@@ -158,7 +158,7 @@ pub const Bind = struct {
 };
 
 pub fn register(self: *BindKey, bind: Bind) !void {
-    try self.binds.append(bind);
+    try self.binds.putNoClobber(bind.key, bind);
 }
 
 pub fn loop(self: *BindKey) !void {
@@ -174,7 +174,7 @@ pub fn loop(self: *BindKey) !void {
         if (result_code != .success or !(event.type == .key)) continue;
         if (event.code == key.ESC) break;
 
-        for (self.binds.items) |bind| {
+        if (self.binds.get(event.code)) |bind| {
             switch (bind.runtype) {
                 .single => {
                     if (event.value == @intFromEnum(bind.event) and
@@ -185,6 +185,21 @@ pub fn loop(self: *BindKey) !void {
                 },
                 .loop => |_| {},
             }
+        } else {
+            try self.send(event.code, @enumFromInt(event.value));
         }
+
+        // for (self.binds.items) |bind| {
+        //     switch (bind.runtype) {
+        //         .single => {
+        //             if (event.value == @intFromEnum(bind.event) and
+        //                 event.code == bind.key)
+        //             {
+        //                 try bind.run();
+        //             }
+        //         },
+        //         .loop => |_| {},
+        //     }
+        // }
     }
 }
