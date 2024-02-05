@@ -6,7 +6,7 @@ const ev = @import("evdev");
 const BindKey = @This();
 const log = std.log.scoped(.BindKey);
 
-pub const key = ev.key;
+pub const keys = ev.key;
 pub const value = enum(i32) {
     release = ev.event_values.key.release,
     press = ev.event_values.key.press,
@@ -161,6 +161,12 @@ pub fn register(self: *BindKey, bind: Bind) !void {
     try self.binds.putNoClobber(bind.key, bind);
 }
 
+pub fn unregister(self: *BindKey, bind: Bind) !void {
+    if (!self.binds.swapRemove(bind.key)) {
+        return error.FailedToUnregisterBind;
+    }
+}
+
 pub fn loop(self: *BindKey) !void {
     log.info("BindKey loop started. Press ESC to exit.", .{});
     var event: ev.InputEvent = undefined;
@@ -172,7 +178,7 @@ pub fn loop(self: *BindKey) !void {
     while (true) {
         const result_code = self.evdev.nextEvent(.normal, &event) catch continue;
         if (result_code != .success or !(event.type == .key)) continue;
-        if (event.code == key.ESC) break;
+        if (event.code == keys.ESC) break;
 
         if (self.binds.get(event.code)) |bind| {
             switch (bind.runtype) {
