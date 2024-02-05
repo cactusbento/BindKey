@@ -139,15 +139,33 @@ pub fn send(self: *BindKey, code: u32, val: value) !void {
 }
 
 pub const Bind = struct {
+    /// Keycode of target key. See key.
     key: u32,
     runtype: RunType = .{ .single = .press },
+
+    /// Pointer to a context struct that will be
+    /// passed into `.callback` as an argument.
     context: ?*anyopaque,
+
+    /// Used for looping binds.
+    /// Untouched when `.runtype` is `.single`
+    timer: ?std.time.Timer = null,
 
     /// Function to run when detecting a keyboard input
     callback: *const fn (?*anyopaque) anyerror!void,
 
+    /// Tracks the state of `.key` for the `.loop` RunType
+    /// Should not be touched.
+    state: bool = false,
+
+    /// A workaround for not having async yet.
+    thread: ?std.Thread = null,
+
     pub const RunType = union(enum) {
+        /// The delay in milliseconds.
         loop: u64,
+
+        /// The triggering event. See value.
         single: value,
     };
 
@@ -156,11 +174,18 @@ pub const Bind = struct {
     }
 };
 
-pub fn register(self: *BindKey, bind: Bind) !void {
-    try self.binds.putNoClobber(bind.key, bind);
+pub fn register(self: *BindKey, bind: *Bind) !void {
+    switch (bind.runtype) {
+        .loop => {
+            if (bind.timer == null) return error.LoopBindWithoutTimer;
+        },
+        else => {},
+    }
+
+    try self.binds.putNoClobber(bind.key, bind.*);
 }
 
-pub fn unregister(self: *BindKey, bind: Bind) !void {
+pub fn unregister(self: *BindKey, bind: *Bind) !void {
     if (!self.binds.swapRemove(bind.key)) {
         return error.FailedToUnregisterBind;
     }
@@ -179,7 +204,7 @@ pub fn loop(self: *BindKey) !void {
         if (result_code != .success or !(event.type == .key)) continue;
         if (event.code == keys.ESC) break;
 
-        if (self.binds.get(event.code)) |bind| {
+        if (self.binds.getPtr(event.code)) |bind| {
             if (event.code != bind.key) continue;
             switch (bind.runtype) {
                 .single => |v| {
@@ -187,7 +212,35 @@ pub fn loop(self: *BindKey) !void {
                         try bind.run();
                     }
                 },
-                .loop => |_| {},
+                .loop => |delay| {
+                    const Loop = struct {
+                        fn looper(b: *Bind, ms: u64) !void {
+                            while (b.state) {
+                                if (b.timer.?.read() >= std.time.ns_per_ms * ms) {
+                                    b.timer.?.reset();
+                                    try b.run();
+                                }
+                            }
+                        }
+                    };
+
+                    // On Press
+                    if (event.value == @intFromEnum(value.press)) {
+                        log.info("Starting Loop on {}", .{bind.key});
+                        bind.timer.?.reset();
+                        bind.state = true;
+                        bind.thread = try std.Thread.spawn(.{}, Loop.looper, .{ bind, delay });
+                        bind.thread.?.detach();
+                        bind.thread = null;
+                        try bind.run();
+                    }
+
+                    // On Release
+                    if (event.value == @intFromEnum(value.release)) {
+                        log.info("Ending Loop on {}", .{bind.key});
+                        bind.state = false;
+                    }
+                },
             }
         } else {
             try self.send(event.code, @enumFromInt(event.value));

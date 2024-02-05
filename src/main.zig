@@ -16,7 +16,7 @@ pub fn main() !void {
         .bkctx = &bk,
     };
 
-    const SpaceHello: bindkey.Bind = .{
+    var SpaceHello: bindkey.Bind = .{
         .key = bindkey.keys.SPACE,
         .runtype = .{ .single = .press },
         .context = @ptrCast(&hwctx),
@@ -27,17 +27,18 @@ pub fn main() !void {
         .bkctx = &bk,
     };
 
-    const Zero: bindkey.Bind = .{
+    var Zero: bindkey.Bind = .{
         .key = bindkey.keys.@"0",
-        .runtype = .{ .single = .press },
+        .runtype = .{ .loop = 10 },
+        .timer = try std.time.Timer.start(),
         .context = @ptrCast(&zeroctx),
         .callback = zero,
     };
 
-    try bk.register(SpaceHello);
-    try bk.register(Zero);
+    try bk.register(&SpaceHello);
+    try bk.register(&Zero);
 
-    try bk.unregister(SpaceHello);
+    try bk.unregister(&SpaceHello);
 
     try bk.loop();
 }
@@ -58,7 +59,8 @@ const zeroCTX = struct {
 
 pub fn zero(ctx: ?*anyopaque) !void {
     const c: *zeroCTX = @alignCast(@ptrCast(ctx.?));
-    std.debug.print("zero() sending KEY_SPACE\n", .{});
-    try c.bkctx.send(bindkey.keys.SPACE, bindkey.value.press);
-    try c.bkctx.send(bindkey.keys.SPACE, bindkey.value.release);
+    _ = c; // autofix
+    std.debug.print("zero() Loops!\n", .{});
+    // try c.bkctx.send(bindkey.keys.SPACE, bindkey.value.press);
+    // try c.bkctx.send(bindkey.keys.SPACE, bindkey.value.release);
 }

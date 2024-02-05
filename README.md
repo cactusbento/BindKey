@@ -22,4 +22,4 @@ See `src/main.zig` for an example of how to use this library.
 - [x] Send Keyboard Inputs
 - [ ] Read mouse events
 - [ ] Send mouse inputs
-- [ ] Looping functions
+- [x] Looping functions (Jank)
