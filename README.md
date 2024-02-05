@@ -1,6 +1,6 @@
 # BindKey
 
-Tested Zig version: `0.12.0-dev.2536+788a0409a`
+Tested Zig version: `0.12.0-dev.2587+a1b607acb`
 
 A Zig library for rebinding keys to callback functions.
 
