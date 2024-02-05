@@ -192,18 +192,5 @@ pub fn loop(self: *BindKey) !void {
         } else {
             try self.send(event.code, @enumFromInt(event.value));
         }
-
-        // for (self.binds.items) |bind| {
-        //     switch (bind.runtype) {
-        //         .single => {
-        //             if (event.value == @intFromEnum(bind.event) and
-        //                 event.code == bind.key)
-        //             {
-        //                 try bind.run();
-        //             }
-        //         },
-        //         .loop => |_| {},
-        //     }
-        // }
     }
 }
