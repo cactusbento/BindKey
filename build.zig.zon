@@ -39,7 +39,8 @@
         //    .path = "foo",
         //},
         .libevdev = .{
-            .path = "../zigLibevdev",
+            .url = "https://github.com/cactusbento/libevdev-zig/archive/0c023032a0ad31cbfdc8a2d0666f56d2d1dcbd04.tar.gz",
+            .hash = "122035d510f05da6c89b9eb4b882bb546324cdd66a0b72547968be61ad318a7b92e0",
         },
     },
 
