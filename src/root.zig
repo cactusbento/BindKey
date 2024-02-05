@@ -140,8 +140,7 @@ pub fn send(self: *BindKey, code: u32, val: value) !void {
 
 pub const Bind = struct {
     key: u32,
-    runtype: RunType = .single,
-    event: value = .press,
+    runtype: RunType = .{ .single = .press },
     context: ?*anyopaque,
 
     /// Function to run when detecting a keyboard input
@@ -149,7 +148,7 @@ pub const Bind = struct {
 
     pub const RunType = union(enum) {
         loop: u64,
-        single,
+        single: value,
     };
 
     pub fn run(self: Bind) anyerror!void {
@@ -181,11 +180,10 @@ pub fn loop(self: *BindKey) !void {
         if (event.code == keys.ESC) break;
 
         if (self.binds.get(event.code)) |bind| {
+            if (event.code != bind.key) continue;
             switch (bind.runtype) {
-                .single => {
-                    if (event.value == @intFromEnum(bind.event) and
-                        event.code == bind.key)
-                    {
+                .single => |v| {
+                    if (event.value == @intFromEnum(v)) {
                         try bind.run();
                     }
                 },

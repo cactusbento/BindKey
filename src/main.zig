@@ -18,7 +18,7 @@ pub fn main() !void {
 
     const SpaceHello: bindkey.Bind = .{
         .key = bindkey.keys.SPACE,
-        .runtype = .single,
+        .runtype = .{ .single = .press },
         .context = @ptrCast(&hwctx),
         .callback = helloWorld,
     };
@@ -29,7 +29,7 @@ pub fn main() !void {
 
     const Zero: bindkey.Bind = .{
         .key = bindkey.keys.@"0",
-        .runtype = .single,
+        .runtype = .{ .single = .press },
         .context = @ptrCast(&zeroctx),
         .callback = zero,
     };
