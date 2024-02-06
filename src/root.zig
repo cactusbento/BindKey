@@ -7,7 +7,16 @@ const BindKey = @This();
 const log = std.log.scoped(.BindKey);
 
 pub const events = ev.events;
+
+/// Codes for keyboard keys and other buttons.
+/// (Including mouse buttons).
+///
+/// The mouse uses .BTN_
 pub const key = events.KEY;
+
+/// Codes for relative positioning.
+/// Useful for manipulating the mouse.
+pub const rel = events.REL;
 pub const EventType = ev.EventType;
 pub const EventCode = events.EventCode;
 
@@ -171,6 +180,10 @@ pub const Bind = struct {
         /// The delay in milliseconds.
         loop: u64,
 
+        /// Like `.loop`, but keeps running
+        /// until `Bind.key` is pressed again.
+        toggle: u64,
+
         /// The triggering event. See value.
         single: value,
     };
@@ -182,7 +195,7 @@ pub const Bind = struct {
 
 pub fn register(self: *BindKey, bind: *Bind) !void {
     switch (bind.runtype) {
-        .loop => {
+        .loop, .toggle => {
             if (bind.timer == null) return error.LoopBindWithoutTimer;
         },
         else => {},
@@ -239,6 +252,23 @@ pub fn loop(self: *BindKey) !void {
                             if (event.value == @intFromEnum(value.release)) {
                                 log.info("Ending Loop on {}", .{bind.key});
                                 bind.state = false;
+                            }
+                        },
+                        .toggle => |delay| {
+                            // On Press
+                            if (event.value == @intFromEnum(value.press)) {
+                                if (bind.state) {
+                                    log.info("Ending Toggle Loop on {}", .{bind.key});
+                                    bind.state = false;
+                                } else {
+                                    log.info("Starting Toggle Loop on {}", .{bind.key});
+                                    bind.timer.?.reset();
+                                    bind.state = true;
+                                    bind.thread = try std.Thread.spawn(.{}, looper, .{ bind, delay });
+                                    bind.thread.?.detach();
+                                    bind.thread = null;
+                                    try bind.run();
+                                }
                             }
                         },
                     }

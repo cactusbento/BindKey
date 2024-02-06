@@ -30,7 +30,7 @@ pub fn main() !void {
 
     var Zero: bindkey.Bind = .{
         .key = .KEY_0,
-        .runtype = .{ .loop = 10 },
+        .runtype = .{ .toggle = 100 },
         .timer = try std.time.Timer.start(),
         .context = @ptrCast(&zeroctx),
         .callback = zero,
