@@ -20,6 +20,6 @@ See `src/main.zig` for an example of how to use this library.
 - [x] Read Keyboard events
 - [x] Capture all keyboard inputs
 - [x] Send Keyboard Inputs
-- [ ] Read mouse events
-- [ ] Send mouse inputs
+- [x] Read mouse events
+- [x] Send mouse inputs
 - [x] Looping functions (Jank)

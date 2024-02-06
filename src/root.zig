@@ -71,11 +71,11 @@ pub fn init(allocator: std.mem.Allocator, input_id: ?[]const u8) !BindKey {
         var iter = inputdir.iterate();
         var index: u32 = 1;
         while (try iter.next()) |et| {
-            if (std.mem.endsWith(u8, et.name, "kbd")) {
-                defer index += 1;
-                const name_clone = try allocator.dupe(u8, et.name);
-                try possible_inputs.put(index, name_clone);
-            }
+            // if (std.mem.endsWith(u8, et.name, "kbd")) {
+            defer index += 1;
+            const name_clone = try allocator.dupe(u8, et.name);
+            try possible_inputs.put(index, name_clone);
+            // }
         }
 
         var input_buffer = std.ArrayList(u8).init(allocator);
@@ -134,12 +134,12 @@ pub fn deinit(self: *BindKey) void {
 
 /// code: the keycode of the key to send. See key.
 /// valu: .press, .hold, .release. See value.
-pub fn send(self: *BindKey, code: EventCode, val: value) !void {
+pub fn send(self: *BindKey, code: EventCode, val: i32) !void {
     const newevent: ev.InputEvent = .{
         .ev = undefined,
         .type = @as(EventType, code),
         .code = code,
-        .value = @intFromEnum(val),
+        .value = val,
     };
     try self.uidev.writeEvent(newevent);
 }
@@ -205,51 +205,57 @@ pub fn loop(self: *BindKey) !void {
         try self.evdev.grab(.grab);
     }
     defer self.evdev.grab(.ungrab) catch unreachable;
-    while (true) {
+    ol: while (true) {
         const result_code = self.evdev.nextEvent(.normal, &event) catch continue;
-        if (result_code != .success or !(event.type == .key)) continue;
-        if (event.code.key == self.exit_key) break;
-
-        if (self.binds.getPtr(event.code.key)) |bind| {
-            if (event.code.key != bind.key) continue;
-            switch (bind.runtype) {
-                .single => |v| {
-                    if (event.value == @intFromEnum(v)) {
-                        try bind.run();
-                    }
-                },
-                .loop => |delay| {
-                    const Loop = struct {
-                        fn looper(b: *Bind, ms: u64) !void {
-                            while (b.state) {
-                                if (b.timer.?.read() >= std.time.ns_per_ms * ms) {
-                                    b.timer.?.reset();
-                                    try b.run();
-                                }
+        if (result_code != .success) {
+            try self.send(event.code, event.value);
+            continue;
+        }
+        switch (event.code) {
+            .key => |ek| sb: {
+                if (ek == self.exit_key) break :ol;
+                if (self.binds.getPtr(ek)) |bind| {
+                    if (ek != bind.key) break :sb;
+                    switch (bind.runtype) {
+                        .single => |v| {
+                            if (event.value == @intFromEnum(v)) {
+                                try bind.run();
                             }
-                        }
-                    };
+                        },
+                        .loop => |delay| {
 
-                    // On Press
-                    if (event.value == @intFromEnum(value.press)) {
-                        log.info("Starting Loop on {}", .{bind.key});
-                        bind.timer.?.reset();
-                        bind.state = true;
-                        bind.thread = try std.Thread.spawn(.{}, Loop.looper, .{ bind, delay });
-                        bind.thread.?.detach();
-                        bind.thread = null;
-                        try bind.run();
-                    }
+                            // On Press
+                            if (event.value == @intFromEnum(value.press)) {
+                                log.info("Starting Loop on {}", .{bind.key});
+                                bind.timer.?.reset();
+                                bind.state = true;
+                                bind.thread = try std.Thread.spawn(.{}, looper, .{ bind, delay });
+                                bind.thread.?.detach();
+                                bind.thread = null;
+                                try bind.run();
+                            }
 
-                    // On Release
-                    if (event.value == @intFromEnum(value.release)) {
-                        log.info("Ending Loop on {}", .{bind.key});
-                        bind.state = false;
+                            // On Release
+                            if (event.value == @intFromEnum(value.release)) {
+                                log.info("Ending Loop on {}", .{bind.key});
+                                bind.state = false;
+                            }
+                        },
                     }
-                },
-            }
-        } else {
-            try self.send(event.code, @enumFromInt(event.value));
+                    continue :ol;
+                }
+            },
+            else => {},
+        }
+
+        try self.send(event.code, event.value);
+    }
+}
+fn looper(b: *Bind, ms: u64) !void {
+    while (b.state) {
+        if (b.timer.?.read() >= std.time.ns_per_ms * ms) {
+            b.timer.?.reset();
+            try b.run();
         }
     }
 }
