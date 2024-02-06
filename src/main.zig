@@ -1,5 +1,6 @@
 const std = @import("std");
 const bindkey = @import("bindkey");
+const key = bindkey.key;
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -17,7 +18,7 @@ pub fn main() !void {
     };
 
     var SpaceHello: bindkey.Bind = .{
-        .key = bindkey.keys.SPACE,
+        .key = .KEY_SPACE,
         .runtype = .{ .single = .press },
         .context = @ptrCast(&hwctx),
         .callback = helloWorld,
@@ -28,7 +29,7 @@ pub fn main() !void {
     };
 
     var Zero: bindkey.Bind = .{
-        .key = bindkey.keys.@"0",
+        .key = .KEY_0,
         .runtype = .{ .loop = 10 },
         .timer = try std.time.Timer.start(),
         .context = @ptrCast(&zeroctx),

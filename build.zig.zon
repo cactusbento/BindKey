@@ -39,8 +39,8 @@
         //    .path = "foo",
         //},
         .libevdev = .{
-            .url = "https://github.com/cactusbento/libevdev-zig/archive/0c023032a0ad31cbfdc8a2d0666f56d2d1dcbd04.tar.gz",
-            .hash = "122035d510f05da6c89b9eb4b882bb546324cdd66a0b72547968be61ad318a7b92e0",
+            .url = "https://github.com/cactusbento/libevdev-zig/archive/2c0780be5f49c1ea04d805e696f836fc9f5f5c35.tar.gz",
+            .hash = "12206aeb349059e16afe447a95a5cf665589f2939a07e58284dbaaeef7b16798e6a8",
         },
     },
 

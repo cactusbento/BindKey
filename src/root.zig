@@ -1,4 +1,4 @@
-//! The Escape key (KEY_ESC) is reserved for exiting the main loop of the library.
+//! The Escape key (KEY_ESC) is the default for exiting the main loop of the library.
 //! Any assignments to it will be ignored.
 
 const std = @import("std");
@@ -6,7 +6,11 @@ const ev = @import("evdev");
 const BindKey = @This();
 const log = std.log.scoped(.BindKey);
 
-pub const keys = ev.key;
+pub const events = ev.events;
+pub const key = events.KEY;
+pub const EventType = ev.EventType;
+pub const EventCode = events.EventCode;
+
 pub const value = enum(i32) {
     release = ev.event_values.key.release,
     press = ev.event_values.key.press,
@@ -19,11 +23,13 @@ pub const value = enum(i32) {
 /// Calls std.time.sleep;
 pub var grab_delay: u64 = 250;
 
+exit_key: key = .KEY_ESC,
+
 input: std.fs.File,
 evdev: ev,
 uidev: ev.UInput,
 uifd: std.fs.File,
-binds: std.AutoArrayHashMap(u32, Bind),
+binds: std.AutoArrayHashMap(key, Bind),
 
 /// Subject to a delay to give time to let
 /// the user release any keys pressed when grabbing.
@@ -111,7 +117,7 @@ pub fn init(allocator: std.mem.Allocator, input_id: ?[]const u8) !BindKey {
 
     ret.evdev = try ev.init(ret.input.handle);
     ret.uidev = try ev.UInput.init(ret.evdev.evdev, ret.uifd);
-    ret.binds = std.AutoArrayHashMap(u32, Bind).init(allocator);
+    ret.binds = std.AutoArrayHashMap(key, Bind).init(allocator);
 
     return ret;
 }
@@ -128,10 +134,10 @@ pub fn deinit(self: *BindKey) void {
 
 /// code: the keycode of the key to send. See key.
 /// valu: .press, .hold, .release. See value.
-pub fn send(self: *BindKey, code: u32, val: value) !void {
+pub fn send(self: *BindKey, code: EventCode, val: value) !void {
     const newevent: ev.InputEvent = .{
         .ev = undefined,
-        .type = .key,
+        .type = @as(EventType, code),
         .code = code,
         .value = @intFromEnum(val),
     };
@@ -140,7 +146,7 @@ pub fn send(self: *BindKey, code: u32, val: value) !void {
 
 pub const Bind = struct {
     /// Keycode of target key. See key.
-    key: u32,
+    key: key,
     runtype: RunType = .{ .single = .press },
 
     /// Pointer to a context struct that will be
@@ -202,10 +208,10 @@ pub fn loop(self: *BindKey) !void {
     while (true) {
         const result_code = self.evdev.nextEvent(.normal, &event) catch continue;
         if (result_code != .success or !(event.type == .key)) continue;
-        if (event.code == keys.ESC) break;
+        if (event.code.key == self.exit_key) break;
 
-        if (self.binds.getPtr(event.code)) |bind| {
-            if (event.code != bind.key) continue;
+        if (self.binds.getPtr(event.code.key)) |bind| {
+            if (event.code.key != bind.key) continue;
             switch (bind.runtype) {
                 .single => |v| {
                     if (event.value == @intFromEnum(v)) {
