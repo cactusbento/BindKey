@@ -46,6 +46,11 @@ binds: std.AutoArrayHashMap(key, Bind),
 /// See grab_delay
 grab: bool = false,
 
+const open_flags: std.fs.File.OpenFlags = .{
+    .mode = .read_write,
+    .lock_nonblocking = true,
+};
+
 pub fn init(allocator: std.mem.Allocator, input_id: ?[]const u8) !BindKey {
     const stdout_w = std.io.getStdOut().writer();
     var bw = std.io.bufferedWriter(stdout_w);
@@ -67,7 +72,7 @@ pub fn init(allocator: std.mem.Allocator, input_id: ?[]const u8) !BindKey {
     defer inputdir.close();
 
     if (input_id) |iid| {
-        ret.input = try inputdir.openFile(iid, .{ .mode = .read_write });
+        ret.input = try inputdir.openFile(iid, open_flags);
     } else {
         var possible_inputs = std.AutoArrayHashMap(u32, []const u8).init(allocator);
         defer {
@@ -119,7 +124,7 @@ pub fn init(allocator: std.mem.Allocator, input_id: ?[]const u8) !BindKey {
                 continue :sl;
             };
 
-            ret.input = try inputdir.openFile(selected, .{ .mode = .read_write });
+            ret.input = try inputdir.openFile(selected, open_flags);
             break :sl;
         }
     }
@@ -222,7 +227,7 @@ pub fn loop(self: *BindKey) !void {
         const result_code = self.evdev.nextEvent(.normal, &event) catch continue;
         if (result_code != .success) {
             try self.send(event.code, event.value);
-            continue;
+            continue :ol;
         }
         switch (event.code) {
             .key => |ek| sb: {
@@ -278,6 +283,8 @@ pub fn loop(self: *BindKey) !void {
             else => {},
         }
 
+        if (event.code == .rel and event.code.rel == .WHEEL_HI_RES) continue :ol;
+        // log.info("Loop: Default passthrough. {any} {any}", .{ event.code, event.value });
         try self.send(event.code, event.value);
     }
 }
